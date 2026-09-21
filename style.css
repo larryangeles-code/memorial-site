@@ -8,7 +8,7 @@
    --parchment  #EDE8DF
    --taupe      #C9B8A8
    --walnut     #3D2B1F
-   --sage       #8A9E8C
+   --sage       #586D5A
 ═══════════════════════════════════════════════════════════ */
 
 /* ── CSS custom properties ── */
@@ -17,7 +17,7 @@
   --parchment: #EDE8DF;
   --taupe:     #C9B8A8;
   --walnut:    #3D2B1F;
-  --sage:      #8A9E8C;
+  --sage:      #586D5A;
 }
 
 /* ── Base ── */
@@ -29,7 +29,7 @@ html {
 body {
   background-color: var(--ivory);
   color: var(--walnut);
-  font-family: 'Cormorant Garant', Georgia, 'Times New Roman', serif;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
   font-size: 1.125rem;
   line-height: 1.85;
   -webkit-font-smoothing: antialiased;
@@ -39,6 +39,13 @@ body {
 /* ── Section backgrounds ── */
 .section-ivory    { background-color: var(--ivory);     padding: 5rem 0; }
 .section-parchment{ background-color: var(--parchment); padding: 5rem 0; }
+
+.section-ivory,
+.section-parchment,
+.site-footer {
+  content-visibility: auto;
+  contain-intrinsic-size: 700px;
+}
 .border-bottom-taupe { border-bottom: 1px solid var(--taupe); }
 .text-taupe       { color: var(--taupe); }
 
@@ -85,7 +92,12 @@ body {
 }
 
 @media (max-width: 576px) {
-  .slideshow { height: 88vh; }
+  .slideshow {
+    height: 72vh;
+    height: 72svh;
+    min-height: 420px;
+    max-height: 680px;
+  }
 }
 
 .slideshow-track {
@@ -141,14 +153,15 @@ body {
 .slideshow-btn:focus-visible {
   background: rgba(250, 247, 242, 0.96);
   border-color: var(--taupe);
-  outline: none;
+  outline: 2px solid rgba(61, 43, 31, 0.35);
+  outline-offset: 2px;
 }
 
 .slideshow-btn.prev { left: 1.25rem; }
 .slideshow-btn.next { right: 1.25rem; }
 
 @media (max-width: 576px) {
-  .slideshow-btn { width: 2.25rem; height: 2.25rem; font-size: 1rem; }
+  .slideshow-btn { width: 2.75rem; height: 2.75rem; font-size: 1rem; }
   .slideshow-btn.prev { left: 0.6rem; }
   .slideshow-btn.next { right: 0.6rem; }
 }
@@ -295,7 +308,7 @@ body {
   border: 1px solid var(--taupe);
   border-radius: 0.4rem;
   color: var(--walnut);
-  font-family: 'Cormorant Garant', Georgia, serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 1.05rem;
   padding: 0.65rem 0.9rem;
 }
@@ -322,7 +335,7 @@ body {
   border: 1px solid var(--walnut);
   border-radius: 2rem;
   padding: 0.65rem 2.25rem;
-  font-family: 'Cormorant Garant', Georgia, serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 1rem;
   letter-spacing: 0.05em;
   transition: background-color 0.2s ease, opacity 0.2s ease;

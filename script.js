@@ -1,166 +1,242 @@
 /**
- * Memorial Site — script.js
+ * Memorial Site — slideshow
  *
- * Builds the slideshow dynamically from PHOTOS (defined in photos.js).
- * Features:
- *  - Slides & dots injected from PHOTOS array — no hardcoded HTML needed
- *  - Auto-plays every 4 s, pauses on hover/focus/touch
- *  - Arrow buttons + dot navigation
- *  - Touch/swipe support (left/right)
- *  - "3 / 19" counter shown instead of dots when there are more than 8 slides
- *    (dots still used for ≤8, counter for larger sets — works on any screen)
- *  - Respects prefers-reduced-motion (disables autoplay)
- *  - Keyboard arrow navigation
+ * Performance/UX notes:
+ * - Only the current and adjacent photos receive a src initially.
+ *   This avoids downloading the full gallery on first paint.
+ * - The next/previous images are warmed before navigation.
+ * - Autoplay stops when the slideshow or browser tab is not visible.
+ * - Reduced-motion preferences are respected.
  */
 
 (function () {
   'use strict';
 
-  /* ── Config ── */
-  const INTERVAL_MS   = 2000;
-  const DOT_THRESHOLD = 8; // use counter instead of dots above this count
+  const INTERVAL_MS = 5500;
+  const DOT_THRESHOLD = 8;
 
-  /* ── Guard ── */
   if (typeof PHOTOS === 'undefined' || !PHOTOS.length) {
     console.warn('memorial-site: PHOTOS is empty or not loaded.');
     return;
   }
 
-  /* ── DOM refs ── */
-  const track      = document.querySelector('.slideshow-track');
-  const dotsWrap   = document.querySelector('.slideshow-dots');
-  const counter    = document.querySelector('.slide-counter');
-  const prevBtn    = document.querySelector('.slideshow-btn.prev');
-  const nextBtn    = document.querySelector('.slideshow-btn.next');
-  const slideshow  = document.querySelector('.slideshow');
+  const track = document.querySelector('.slideshow-track');
+  const dotsWrap = document.querySelector('.slideshow-dots');
+  const counter = document.querySelector('.slide-counter');
+  const prevBtn = document.querySelector('.slideshow-btn.prev');
+  const nextBtn = document.querySelector('.slideshow-btn.next');
+  const slideshow = document.querySelector('.slideshow');
 
-  /* ── Build slides ── */
+  if (!track || !dotsWrap || !counter || !prevBtn || !nextBtn || !slideshow) {
+    console.warn('memorial-site: slideshow markup is incomplete.');
+    return;
+  }
+
+  const slides = [];
+  const dots = [];
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const useDots = PHOTOS.length <= DOT_THRESHOLD;
+
+  let current = 0;
+  let timer = null;
+  let slideshowVisible = true;
+  let interactionPaused = false;
+  let touchStartX = null;
+  let touchStartY = null;
+
+  function normalizeIndex(index) {
+    return (index + PHOTOS.length) % PHOTOS.length;
+  }
+
+  function ensureImageLoaded(index, priority) {
+    const normalized = normalizeIndex(index);
+    const img = slides[normalized] && slides[normalized].querySelector('img');
+
+    if (!img || img.getAttribute('src')) return;
+
+    img.src = img.dataset.src;
+    img.removeAttribute('data-src');
+    img.loading = priority ? 'eager' : 'lazy';
+    img.decoding = 'async';
+
+    if (priority) {
+      img.fetchPriority = 'high';
+    }
+  }
+
+  function warmAdjacentImages(index) {
+    ensureImageLoaded(index, true);
+    ensureImageLoaded(index + 1, false);
+    ensureImageLoaded(index - 1, false);
+  }
+
   PHOTOS.forEach(function (src, i) {
     const div = document.createElement('div');
     div.className = 'slide' + (i === 0 ? ' active' : '');
     div.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
 
     const img = document.createElement('img');
-    img.src = src;
-    img.alt = 'Photo ' + (i + 1);
-    img.loading = i === 0 ? 'eager' : 'lazy'; // lazy-load everything after first
+    img.dataset.src = src;
+    img.alt = 'Memorial photo ' + (i + 1) + ' of ' + PHOTOS.length;
+    img.decoding = 'async';
 
     div.appendChild(img);
     track.appendChild(div);
+    slides.push(div);
   });
-
-  /* ── Build navigation (dots or counter) ── */
-  const useDots = PHOTOS.length <= DOT_THRESHOLD;
 
   if (useDots) {
     PHOTOS.forEach(function (_, i) {
       const btn = document.createElement('button');
       btn.className = 'dot' + (i === 0 ? ' active' : '');
-      btn.setAttribute('role', 'tab');
-      btn.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
-      btn.setAttribute('aria-label', 'Photo ' + (i + 1));
-      btn.addEventListener('click', function () { goTo(i); startTimer(); });
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Show memorial photo ' + (i + 1));
+      btn.setAttribute('aria-current', i === 0 ? 'true' : 'false');
+      btn.addEventListener('click', function () {
+        goTo(i);
+        startTimer();
+      });
+
       dotsWrap.appendChild(btn);
+      dots.push(btn);
     });
+
     counter.hidden = true;
   } else {
     dotsWrap.hidden = true;
+    counter.textContent = '1 / ' + PHOTOS.length;
   }
 
-  /* ── State ── */
-  let current = 0;
-  let timer   = null;
+  warmAdjacentImages(0);
 
-  /* ── Core: go to slide N ── */
   function goTo(index) {
-    index = (index + PHOTOS.length) % PHOTOS.length;
+    const next = normalizeIndex(index);
 
-    const slides = track.querySelectorAll('.slide');
+    if (next === current) return;
+
+    warmAdjacentImages(next);
+
     slides[current].classList.remove('active');
     slides[current].setAttribute('aria-hidden', 'true');
 
-    current = index;
+    current = next;
 
     slides[current].classList.add('active');
     slides[current].setAttribute('aria-hidden', 'false');
 
     if (useDots) {
-      const dots = dotsWrap.querySelectorAll('.dot');
-      dots.forEach(function (d, i) {
-        d.classList.toggle('active', i === current);
-        d.setAttribute('aria-selected', i === current ? 'true' : 'false');
+      dots.forEach(function (dot, i) {
+        const active = i === current;
+        dot.classList.toggle('active', active);
+        dot.setAttribute('aria-current', active ? 'true' : 'false');
       });
     } else {
       counter.textContent = (current + 1) + ' / ' + PHOTOS.length;
     }
   }
 
-  /* ── Init counter text ── */
-  if (!useDots) {
-    counter.textContent = '1 / ' + PHOTOS.length;
-  }
-
-  /* ── Timer ── */
-  function startTimer() {
-    stopTimer();
-    if (prefersReducedMotion.matches) return;
-    timer = setInterval(function () { goTo(current + 1); }, INTERVAL_MS);
+  function canAutoplay() {
+    return !prefersReducedMotion.matches &&
+      !document.hidden &&
+      slideshowVisible &&
+      !interactionPaused;
   }
 
   function stopTimer() {
-    if (timer !== null) { clearInterval(timer); timer = null; }
+    if (timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
   }
 
-  /* ── Arrows ── */
-  prevBtn.addEventListener('click', function () { goTo(current - 1); startTimer(); });
-  nextBtn.addEventListener('click', function () { goTo(current + 1); startTimer(); });
+  function startTimer() {
+    stopTimer();
+    if (!canAutoplay()) return;
 
-  /* ── Keyboard ── */
-  slideshow.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowLeft')  { goTo(current - 1); startTimer(); }
-    if (e.key === 'ArrowRight') { goTo(current + 1); startTimer(); }
+    timer = setInterval(function () {
+      goTo(current + 1);
+    }, INTERVAL_MS);
+  }
+
+  function pauseForInteraction() {
+    interactionPaused = true;
+    stopTimer();
+  }
+
+  function resumeAfterInteraction() {
+    interactionPaused = false;
+    startTimer();
+  }
+
+  prevBtn.addEventListener('click', function () {
+    goTo(current - 1);
+    startTimer();
   });
 
-  /* ── Pause on hover / focus ── */
-  slideshow.addEventListener('mouseenter', stopTimer);
-  slideshow.addEventListener('mouseleave', startTimer);
-  slideshow.addEventListener('focusin',    stopTimer);
-  slideshow.addEventListener('focusout',   startTimer);
+  nextBtn.addEventListener('click', function () {
+    goTo(current + 1);
+    startTimer();
+  });
 
-  /* ── Touch / swipe ── */
-  var touchStartX = null;
-  var touchStartY = null;
+  slideshow.addEventListener('keydown', function (event) {
+    if (event.key === 'ArrowLeft') {
+      goTo(current - 1);
+      startTimer();
+    } else if (event.key === 'ArrowRight') {
+      goTo(current + 1);
+      startTimer();
+    }
+  });
 
-  slideshow.addEventListener('touchstart', function (e) {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    stopTimer();
+  slideshow.addEventListener('mouseenter', pauseForInteraction);
+  slideshow.addEventListener('mouseleave', resumeAfterInteraction);
+  slideshow.addEventListener('focusin', pauseForInteraction);
+  slideshow.addEventListener('focusout', resumeAfterInteraction);
+
+  slideshow.addEventListener('touchstart', function (event) {
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+    pauseForInteraction();
   }, { passive: true });
 
-  slideshow.addEventListener('touchend', function (e) {
-    if (touchStartX === null) return;
-    var dx = e.changedTouches[0].clientX - touchStartX;
-    var dy = e.changedTouches[0].clientY - touchStartY;
+  slideshow.addEventListener('touchend', function (event) {
+    if (touchStartX === null) {
+      resumeAfterInteraction();
+      return;
+    }
 
-    // Only register horizontal swipes (dx > dy to avoid scroll conflicts)
+    const dx = event.changedTouches[0].clientX - touchStartX;
+    const dy = event.changedTouches[0].clientY - touchStartY;
+
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-      if (dx < 0) goTo(current + 1); // swipe left → next
-      else         goTo(current - 1); // swipe right → prev
+      goTo(dx < 0 ? current + 1 : current - 1);
     }
 
     touchStartX = null;
     touchStartY = null;
-    startTimer();
+    resumeAfterInteraction();
   }, { passive: true });
 
-  /* ── Reduced motion ── */
-  var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-  prefersReducedMotion.addEventListener('change', function () {
-    if (prefersReducedMotion.matches) stopTimer(); else startTimer();
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopTimer();
+    else startTimer();
   });
 
-  /* ── Init ── */
-  startTimer();
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(function (entries) {
+      slideshowVisible = entries[0].isIntersecting;
+      if (slideshowVisible) startTimer();
+      else stopTimer();
+    }, { threshold: 0.15 });
 
+    observer.observe(slideshow);
+  }
+
+  if (typeof prefersReducedMotion.addEventListener === 'function') {
+    prefersReducedMotion.addEventListener('change', function () {
+      startTimer();
+    });
+  }
+
+  startTimer();
 })();

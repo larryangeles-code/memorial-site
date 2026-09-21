@@ -1,7 +1,6 @@
 /**
  * photos.js — photo manifest
- * To add or remove photos, just edit this list.
- * Drop the files in the photos/ folder and add the filename here.
+ * Keep filenames normalized so new memorial photos are easy to add.
  */
 const PHOTOS = [
   'photos/photo1.jpg',
@@ -27,4 +26,9 @@ const PHOTOS = [
   'photos/photo21.jpeg',
   'photos/photo22.jpg',
   'photos/photo23.jpeg',
+  'photos/photo24.jpeg',
+  'photos/photo25.jpeg',
+  'photos/photo26.jpeg',
+  'photos/photo27.jpeg',
+  'photos/photo28.jpeg',
 ];
