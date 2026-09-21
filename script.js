@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  const INTERVAL_MS = 5500;
+  const INTERVAL_MS = 4500;
   const DOT_THRESHOLD = 8;
 
   if (typeof PHOTOS === 'undefined' || !PHOTOS.length) {
@@ -114,13 +114,42 @@
 
     warmAdjacentImages(next);
 
-    slides[current].classList.remove('active');
-    slides[current].setAttribute('aria-hidden', 'true');
+    const outgoing = slides[current];
+    const incoming = slides[next];
+    const movingForward = index > current || (current === PHOTOS.length - 1 && next === 0);
+
+    outgoing.classList.remove('leaving-left', 'leaving-right');
+    incoming.classList.remove('leaving-left', 'leaving-right', 'enter-from-left');
+
+    if (!movingForward) {
+      incoming.classList.add('enter-from-left');
+    }
+
+    // Force the browser to paint the incoming photo at its starting
+    // position before we activate it. This makes the swipe visible
+    // even when the image is already cached.
+    void incoming.offsetWidth;
+
+    outgoing.classList.add(movingForward ? 'leaving-left' : 'leaving-right');
+    outgoing.classList.remove('active');
+    outgoing.setAttribute('aria-hidden', 'true');
 
     current = next;
 
-    slides[current].classList.add('active');
-    slides[current].setAttribute('aria-hidden', 'false');
+    incoming.classList.add('active');
+    incoming.setAttribute('aria-hidden', 'false');
+
+    if (!movingForward) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          incoming.classList.remove('enter-from-left');
+        });
+      });
+    }
+
+    window.setTimeout(function () {
+      outgoing.classList.remove('leaving-left', 'leaving-right');
+    }, 1250);
 
     if (useDots) {
       dots.forEach(function (dot, i) {
