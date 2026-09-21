@@ -110,12 +110,16 @@ body {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity 0.9s ease;
+  transform: translate3d(1.2%, 0, 0);
+  transition:
+    opacity 1.15s ease,
+    transform 1.3s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
 }
 
 .slide.active {
   opacity: 1;
+  transform: translate3d(0, 0, 0);
   pointer-events: auto;
 }
 
@@ -125,6 +129,20 @@ body {
   object-fit: contain;
   object-position: center center;
   background-color: var(--parchment);
+  transform: scale(1.005);
+  transition: transform 6s ease-out;
+}
+
+.slide.active img {
+  transform: scale(1.022);
+}
+
+.slide:nth-child(even) {
+  transform: translate3d(-1.2%, 0, 0);
+}
+
+.slide:nth-child(even).active {
+  transform: translate3d(0, 0, 0);
 }
 
 /* Arrows */
@@ -398,7 +416,11 @@ body {
 
 /* ═══ REDUCED MOTION ══════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
-  .slide { transition: none; }
+  .slide,
+  .slide img {
+    transition: none;
+    transform: none;
+  }
 }
 
 

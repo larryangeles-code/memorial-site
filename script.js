@@ -5,8 +5,9 @@
  * - Only the current and adjacent photos receive a src initially.
  *   This avoids downloading the full gallery on first paint.
  * - The next/previous images are warmed before navigation.
- * - Autoplay stops when the slideshow or browser tab is not visible.
- * - Reduced-motion preferences are respected.
+ * - Autoplay continues through normal pointer, focus, and swipe interaction.
+ * - Autoplay pauses only while the browser tab itself is hidden.
+ * - Reduced-motion preferences keep the photo changes but remove motion effects via CSS.
  */
 
 (function () {
@@ -34,13 +35,10 @@
 
   const slides = [];
   const dots = [];
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const useDots = PHOTOS.length <= DOT_THRESHOLD;
 
   let current = 0;
   let timer = null;
-  let slideshowVisible = true;
-  let interactionPaused = false;
   let touchStartX = null;
   let touchStartY = null;
 
@@ -136,10 +134,7 @@
   }
 
   function canAutoplay() {
-    return !prefersReducedMotion.matches &&
-      !document.hidden &&
-      slideshowVisible &&
-      !interactionPaused;
+    return !document.hidden;
   }
 
   function stopTimer() {
@@ -156,16 +151,6 @@
     timer = setInterval(function () {
       goTo(current + 1);
     }, INTERVAL_MS);
-  }
-
-  function pauseForInteraction() {
-    interactionPaused = true;
-    stopTimer();
-  }
-
-  function resumeAfterInteraction() {
-    interactionPaused = false;
-    startTimer();
   }
 
   prevBtn.addEventListener('click', function () {
@@ -188,20 +173,14 @@
     }
   });
 
-  slideshow.addEventListener('mouseenter', pauseForInteraction);
-  slideshow.addEventListener('mouseleave', resumeAfterInteraction);
-  slideshow.addEventListener('focusin', pauseForInteraction);
-  slideshow.addEventListener('focusout', resumeAfterInteraction);
-
   slideshow.addEventListener('touchstart', function (event) {
     touchStartX = event.touches[0].clientX;
     touchStartY = event.touches[0].clientY;
-    pauseForInteraction();
   }, { passive: true });
 
   slideshow.addEventListener('touchend', function (event) {
     if (touchStartX === null) {
-      resumeAfterInteraction();
+      startTimer();
       return;
     }
 
@@ -214,29 +193,13 @@
 
     touchStartX = null;
     touchStartY = null;
-    resumeAfterInteraction();
+    startTimer();
   }, { passive: true });
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) stopTimer();
     else startTimer();
   });
-
-  if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver(function (entries) {
-      slideshowVisible = entries[0].isIntersecting;
-      if (slideshowVisible) startTimer();
-      else stopTimer();
-    }, { threshold: 0.15 });
-
-    observer.observe(slideshow);
-  }
-
-  if (typeof prefersReducedMotion.addEventListener === 'function') {
-    prefersReducedMotion.addEventListener('change', function () {
-      startTimer();
-    });
-  }
 
   startTimer();
 })();
