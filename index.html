@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>In Memoriam &mdash; Querbin Roy</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garant:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+
+  <!-- Site theme (overrides + slideshow) -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════ -->
+  <header class="site-header text-center">
+    <div class="container">
+      <p class="eyebrow">In Loving Memory</p>
+      <h1 class="display-name">Querbin Roy</h1>
+      <p class="header-dates">
+        <time datetime="1999-03-04">March 4, 1999</time>
+        <span class="mx-3 text-taupe">&mdash;</span>
+        <time datetime="2024-07-16">July 16, 2024</time>
+      </p>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════
+       SLIDESHOW  (custom — JS-driven)
+  ═══════════════════════════════════════ -->
+  <section class="slideshow" aria-label="Photo slideshow">
+    <div class="slideshow-track"><!-- slides injected by script.js --></div>
+
+    <button class="slideshow-btn prev" aria-label="Previous photo">&#8592;</button>
+    <button class="slideshow-btn next" aria-label="Next photo">&#8594;</button>
+
+    <div class="slideshow-nav">
+      <div class="slideshow-dots" role="tablist" aria-label="Slide navigation"><!-- dots injected --></div>
+      <p class="slide-counter" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       AUDIO
+  ═══════════════════════════════════════ -->
+  <section class="section-ivory border-bottom-taupe">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6 text-center">
+          <p class="eyebrow mb-3">&#9834;&ensp;A song he loved</p>
+          <audio id="bg-audio" class="audio-player w-100" controls loop>
+            <source src="audio/memorial.mpeg" type="audio/mpeg" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       QUOTE
+  ═══════════════════════════════════════ -->
+  <section class="section-parchment border-bottom-taupe">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-9 col-lg-7 text-center">
+          <blockquote class="family-quote">
+            <p class="mb-4">
+              &ldquo;He did not leave us &mdash; he simply went ahead,<br>
+              and left the door open, warm with light.&rdquo;
+            </p>
+            <footer class="quote-attribution">&mdash; The Roy Family</footer>
+          </blockquote>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       ABOUT
+  ═══════════════════════════════════════ -->
+  <section class="section-ivory">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-7">
+          <h2 class="section-heading text-center mb-5">A Life Beautifully Lived</h2>
+          <div class="about-text">
+            <p>Every great story has a beautiful beginning. From the very moment you entered this world, you brought an undeniable light and pure joy into our lives. Looking back at your childhood days, we will forever treasure the innocent curiosity in your eyes, the boundless energy of your play, and the sweet sound of your laughter echoing through our home. Even as a young boy, you had a gentle way of leaving footprints on our hearts. Those early years were a gift&mdash;filled with simple joys, small milestones, and a love that began to build the foundation of who you would become.</p>
+            <p>As the years gently rolled on, the young boy grew into a youth full of dreams, passion, and discovery. This was a time of finding your own way, building lasting friendships, and exploring the world around you. We watched you face new challenges with a growing strength and a resilience that made us so incredibly proud. Through every milestone, every laugh shared with family, and every quiet moment of growth, the essence of who you were shone brightly. You were growing, learning, and filling the lives of everyone around you with warmth and unforgettable memories.</p>
+            <p>In adulthood, those early dreams blossomed into a life of true purpose, dedication, and deep love. You became a man of strength, a comforting presence, and a pillar for those who relied on you. Your journey wasn&rsquo;t just measured by the years you lived, but by the lives you touched, the kindness you shared, and the unwavering love you gave to your family and friends. You walked through life with a beautiful soul, creating a legacy of love that time can never fade. Though your chapter here ended too soon, your story is permanently etched in our hearts.</p>
+            <p>From a bright, beautiful boy to an exceptional man, your journey was a masterclass in love and grace. We hold onto the childhood smiles, the adult milestones, and every single second in between. You are deeply missed, safely remembered, and loved for all eternity. Rest peacefully, until we meet again.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       MEMORY WALL
+  ═══════════════════════════════════════ -->
+  <section class="section-parchment border-bottom-taupe" id="memory-wall">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-9 col-lg-7">
+          <p class="eyebrow text-center mb-3">Memory Wall</p>
+          <h2 class="section-heading text-center mb-3">Leave a Memory</h2>
+          <p class="memory-intro text-center mb-5">Share a word, a memory, or a prayer.</p>
+
+          <form id="memory-form" class="memory-form mb-5" novalidate>
+            <div class="mb-3">
+              <label for="memory-name" class="memory-label">Your name (optional)</label>
+              <input type="text" id="memory-name" class="form-control memory-input" maxlength="100" placeholder="Anonymous" />
+            </div>
+            <div class="mb-3">
+              <label for="memory-message" class="memory-label">Your message</label>
+              <textarea id="memory-message" class="form-control memory-input" rows="4" maxlength="1000" required placeholder="Share a word, a memory, or a prayer..."></textarea>
+            </div>
+
+            <!-- Honeypot field: hidden from real visitors, catches simple bots -->
+            <div class="memory-honeypot" aria-hidden="true">
+              <label for="memory-website">Website</label>
+              <input type="text" id="memory-website" name="website" tabindex="-1" autocomplete="off" />
+            </div>
+
+            <div class="text-center">
+              <button type="submit" class="btn memory-submit-btn">Leave a Memory</button>
+            </div>
+            <p class="memory-status text-center mb-0" role="status" aria-live="polite"></p>
+          </form>
+
+          <div id="memory-list" class="memory-list" aria-live="polite">
+            <!-- entries injected by memory-wall.js -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════ -->
+  <footer class="site-footer text-center">
+    <p class="footer-line">Forever in our hearts.</p>
+    <p class="footer-small">1999 &ndash; 2024</p>
+  </footer>
+
+  <!-- Bootstrap JS bundle (Popper included) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="photos.js"></script>
+  <script src="script.js"></script>
+  <script src="memory-wall.js"></script>
+</body>
+</html>
