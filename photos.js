@@ -1,6 +1,7 @@
 /**
  * photos.js — photo manifest
- * Keep filenames normalized so new memorial photos are easy to add.
+ * Add paths from each incoming photo batch here to include them in the slideshow.
+ * Keep the original submissions in their own folders for traceability.
  */
 const PHOTOS = [
   'photos/photo1.jpg',
@@ -31,4 +32,32 @@ const PHOTOS = [
   'photos/photo26.jpeg',
   'photos/photo27.jpeg',
   'photos/photo28.jpeg',
+  // New photos received in the September 29 batch (exact duplicates omitted).
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.47 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.47 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.50 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.50 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.51 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.52 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.52 AM (2).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.52 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.53 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.53 AM (2).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.53 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.54 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.54 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.55 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.55 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.56 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.33.59 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.00 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.01 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.01 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.02 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.02 AM (2).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.02 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.03 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.03 AM.jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.04 AM (1).jpeg',
+  'photos/New/WhatsApp Image 2026-09-29 at 8.34.04 AM.jpeg',
 ];
