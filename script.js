@@ -1,294 +1,332 @@
 /**
- * Cinematic memorial slideshow: layered photos, gentle parallax and a short
- * SVG liquid ripple on desktop. No dependencies and no changes to photo files.
+ * Cinematic photo gallery. Original assets and PHOTOS order stay untouched.
+ * Only the current/adjacent images are loaded, and transitions wait for decoding.
+ * Autoplay stops offscreen, in hidden tabs, or when the visitor presses pause.
  */
 (function () {
   'use strict';
 
   const INTERVAL_MS = 6500;
-  const TRANSITION_MS = 1500;
-  const DOT_THRESHOLD = 8;
+  const TRANSITION_MS = 1550;
   const photos = typeof PHOTOS !== 'undefined' ? PHOTOS : [];
-
   const slideshow = document.querySelector('.slideshow');
   const track = document.querySelector('.slideshow-track');
   const dotsWrap = document.querySelector('.slideshow-dots');
   const counter = document.querySelector('.slide-counter');
-  const progressFill = document.querySelector('.slideshow-progress-fill');
-  const prevBtn = document.querySelector('.slideshow-btn.prev');
-  const nextBtn = document.querySelector('.slideshow-btn.next');
+  const progress = document.querySelector('.slideshow-progress-fill');
+  const previous = document.querySelector('.slideshow-btn.prev');
+  const nextButton = document.querySelector('.slideshow-btn.next');
+  const pause = document.querySelector('.slideshow-btn.pause');
+  const status = document.querySelector('.slideshow-status');
   const displacement = document.getElementById('memorial-liquid-displacement');
-
   if (!photos.length || !slideshow || !track || !dotsWrap || !counter ||
-      !progressFill || !prevBtn || !nextBtn) return;
+      !progress || !previous || !nextButton || !pause) return;
 
-  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const lowPowerQuery = window.matchMedia('(max-width: 640px)');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const smallScreen = window.matchMedia('(max-width: 820px), (pointer: coarse)');
   const slides = [];
   const dots = [];
+  const imagePromises = new Map();
+  const unavailable = new Set();
   let current = 0;
+  let requested = 0;
+  let requestVersion = 0;
+  let ready = false;
+  let loading = false;
+  let userPaused = reduced.matches;
+  let inViewport = true;
   let timer = null;
-  let transitionTimer = null;
+  let cleanupTimer = null;
   let rippleFrame = null;
-  let touchStartX = null;
-  let touchStartY = null;
   let pointerFrame = null;
   let pointerX = 0;
   let pointerY = 0;
+  let touch = null;
 
   slideshow.style.setProperty('--slideshow-interval', INTERVAL_MS + 'ms');
+  slideshow.classList.add('slideshow-ready');
+  const normalize = (index) => ((index % photos.length) + photos.length) % photos.length;
+  const lowMotion = () => reduced.matches || smallScreen.matches;
+  const canPlay = () => ready && !loading && !userPaused && inViewport &&
+    !document.hidden && photos.length > 1;
 
-  function lowMotion() {
-    return reducedMotionQuery.matches || lowPowerQuery.matches;
-  }
-
-  function normalize(index) {
-    return (index + photos.length) % photos.length;
-  }
-
-  function setImage(index, priority) {
-    const slide = slides[normalize(index)];
-    if (!slide) return;
-    const imgs = slide.querySelectorAll('img');
-    imgs.forEach(function (img) {
-      if (img.getAttribute('src')) return;
-      img.loading = priority ? 'eager' : 'lazy';
-      img.decoding = 'async';
-      if (priority && img.classList.contains('slide-photo')) img.fetchPriority = 'high';
-      img.src = img.dataset.src;
-    });
-  }
-
-  function warm(index) {
-    setImage(index, true);
-    setImage(index + 1, false);
-    setImage(index - 1, false);
-  }
-
-  // Keep decoded pictures nearby; do not retain 110 images in memory for 55 slides.
-  function releaseFarImages() {
-    slides.forEach(function (slide, i) {
-      const distance = Math.min((i - current + photos.length) % photos.length,
-        (current - i + photos.length) % photos.length);
-      if (distance <= 2 || slide.classList.contains('is-exiting')) return;
-      slide.querySelectorAll('img').forEach(function (img) {
-        if (img.hasAttribute('src')) img.removeAttribute('src');
-      });
-    });
-  }
-
-  photos.forEach(function (src, i) {
+  photos.forEach(function (src, index) {
     const slide = document.createElement('div');
-    slide.className = 'slide' + (i === 0 ? ' active' : '');
-    slide.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
-
+    slide.className = 'slide' + (index === 0 ? ' active' : '');
+    slide.setAttribute('aria-hidden', index === 0 ? 'false' : 'true');
     const ambient = document.createElement('div');
     ambient.className = 'slide-ambient';
     ambient.setAttribute('aria-hidden', 'true');
-    const ambientImage = document.createElement('img');
-    ambientImage.className = 'slide-ambient-photo';
-    ambientImage.dataset.src = src;
-    ambientImage.alt = '';
-    ambient.appendChild(ambientImage);
-
+    const background = document.createElement('img');
+    background.className = 'slide-ambient-photo';
+    background.alt = '';
+    background.dataset.src = src;
+    ambient.appendChild(background);
     const shade = document.createElement('div');
     shade.className = 'slide-vignette';
     shade.setAttribute('aria-hidden', 'true');
-
     const foreground = document.createElement('div');
     foreground.className = 'slide-foreground';
     const image = document.createElement('img');
     image.className = 'slide-photo';
+    image.alt = 'Memorial photo ' + (index + 1) + ' of ' + photos.length;
     image.dataset.src = src;
-    image.alt = 'Memorial photo ' + (i + 1) + ' of ' + photos.length;
     foreground.appendChild(image);
-
-    slide.appendChild(ambient);
-    slide.appendChild(shade);
-    slide.appendChild(foreground);
+    slide.append(ambient, shade, foreground);
     track.appendChild(slide);
     slides.push(slide);
   });
 
-  if (photos.length <= DOT_THRESHOLD) {
-    photos.forEach(function (_, i) {
-      const btn = document.createElement('button');
-      btn.className = 'dot' + (i === 0 ? ' active' : '');
-      btn.type = 'button';
-      btn.setAttribute('aria-label', 'Show memorial photo ' + (i + 1));
-      btn.setAttribute('aria-current', i === 0 ? 'true' : 'false');
-      btn.addEventListener('click', function () { goTo(i); restartAutoplay(); });
-      dotsWrap.appendChild(btn);
-      dots.push(btn);
+  if (photos.length <= 8 && photos.length > 1) {
+    photos.forEach(function (_, index) {
+      const button = document.createElement('button');
+      button.className = 'dot';
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Show memorial photo ' + (index + 1));
+      button.addEventListener('click', () => navigate(index));
+      dotsWrap.appendChild(button);
+      dots.push(button);
     });
     counter.hidden = true;
   } else {
     dotsWrap.hidden = true;
-    counter.textContent = '01 / ' + String(photos.length).padStart(2, '0');
+  }
+  if (photos.length === 1) {
+    previous.hidden = nextButton.hidden = pause.hidden = true;
+    progress.parentElement.hidden = true;
+  }
+
+  function report(message) {
+    if (!status) return;
+    status.textContent = message;
+    status.hidden = !message;
+  }
+
+  function prepare(index, priority) {
+    index = normalize(index);
+    if (imagePromises.has(index)) return imagePromises.get(index);
+    const image = slides[index].querySelector('.slide-photo');
+    const background = slides[index].querySelector('.slide-ambient-photo');
+    const promise = new Promise(function (resolve) {
+      let finished = false;
+      const timeout = setTimeout(() => finish(false), 15000);
+      function finish(success) {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timeout);
+        image.removeEventListener('load', loaded);
+        image.removeEventListener('error', failed);
+        if (!success) unavailable.add(index);
+        resolve(success);
+      }
+      async function loaded() {
+        // decode() avoids flashing an undecoded incoming photo on slow devices.
+        try { if (image.decode) await image.decode(); } catch (_) { /* use naturalWidth */ }
+        finish(image.naturalWidth > 0);
+      }
+      function failed() { finish(false); }
+      image.addEventListener('load', loaded);
+      image.addEventListener('error', failed);
+      image.loading = background.loading = 'eager';
+      image.decoding = background.decoding = 'async';
+      image.fetchPriority = priority ? 'high' : 'low';
+      background.fetchPriority = 'low';
+      image.src = image.dataset.src;
+      background.src = background.dataset.src;
+      if (image.complete) {
+        if (image.naturalWidth > 0) loaded();
+        else if (image.currentSrc) failed();
+      }
+    });
+    imagePromises.set(index, promise);
+    return promise;
+  }
+
+  function warmAdjacent() {
+    [normalize(current - 1), normalize(current + 1)].forEach(function (index) {
+      if (!unavailable.has(index)) void prepare(index, false);
+    });
+  }
+
+  function releaseFarImages() {
+    slides.forEach(function (slide, index) {
+      const distance = Math.min(normalize(index - current), normalize(current - index));
+      if (distance <= 1 || index === requested || slide.classList.contains('is-exiting')) return;
+      slide.querySelectorAll('img').forEach((image) => image.removeAttribute('src'));
+      imagePromises.delete(index);
+    });
   }
 
   function cancelRipple() {
     if (rippleFrame !== null) cancelAnimationFrame(rippleFrame);
     rippleFrame = null;
     if (displacement) displacement.setAttribute('scale', '0');
-    slides.forEach(function (slide) { slide.classList.remove('liquid-entering'); });
+    slides.forEach((slide) => slide.classList.remove('liquid-entering'));
   }
 
   function ripple(slide) {
     cancelRipple();
-    if (lowMotion() || !displacement) return;
+    if (lowMotion() || !displacement || !inViewport || document.hidden) return;
     slide.classList.add('liquid-entering');
     const start = performance.now();
     function step(now) {
       const t = Math.min((now - start) / 960, 1);
-      displacement.setAttribute('scale', String(Math.sin(t * Math.PI) * 17));
+      displacement.setAttribute('scale', String(Math.sin(t * Math.PI) * 14));
       if (t < 1) rippleFrame = requestAnimationFrame(step);
-      else {
-        rippleFrame = null;
-        displacement.setAttribute('scale', '0');
-        slide.classList.remove('liquid-entering');
-      }
+      else cancelRipple();
     }
     rippleFrame = requestAnimationFrame(step);
   }
 
-  function updateIndicators() {
-    if (dots.length) {
-      dots.forEach(function (dot, i) {
-        dot.classList.toggle('active', i === current);
-        dot.setAttribute('aria-current', i === current ? 'true' : 'false');
-      });
-    } else {
-      counter.textContent = String(current + 1).padStart(2, '0') +
-        ' / ' + String(photos.length).padStart(2, '0');
-    }
-  }
-
-  function goTo(index) {
-    const next = normalize(index);
-    if (next === current) return;
-
-    // Avoid overlapping transition cleanup during rapid manual clicks.
-    if (transitionTimer !== null) {
-      clearTimeout(transitionTimer);
-      transitionTimer = null;
-    }
-    cancelRipple();
-    slides.forEach(function (slide) {
-      slide.classList.remove('is-exiting', 'liquid-entering');
+  function indicators() {
+    counter.textContent = String(current + 1).padStart(2, '0') + ' / ' +
+      String(photos.length).padStart(2, '0');
+    dots.forEach(function (dot, index) {
+      dot.classList.toggle('active', index === current);
+      dot.setAttribute('aria-current', String(index === current));
     });
-
-    const outgoing = slides[current];
-    const incoming = slides[next];
-    warm(next);
-
-    outgoing.classList.remove('active');
-    outgoing.classList.add('is-exiting');
-    outgoing.setAttribute('aria-hidden', 'true');
-    incoming.classList.add('active');
-    incoming.setAttribute('aria-hidden', 'false');
-    current = next;
-    updateIndicators();
-    ripple(incoming);
-
-    transitionTimer = setTimeout(function () {
-      outgoing.classList.remove('is-exiting');
-      transitionTimer = null;
-      releaseFarImages();
-    }, lowMotion() ? 50 : TRANSITION_MS);
   }
 
-  function resetProgress() {
-    progressFill.classList.remove('is-running');
-    void progressFill.offsetWidth;
-    if (!reducedMotionQuery.matches && !document.hidden) {
-      progressFill.classList.add('is-running');
+  function automaticNext() {
+    for (let offset = 1; offset < photos.length; offset += 1) {
+      const index = normalize(current + offset);
+      if (!unavailable.has(index)) return index;
     }
+    return current;
   }
 
-  function stopAutoplay() {
-    if (timer !== null) clearInterval(timer);
+  function syncPlayback() {
+    clearTimeout(timer);
     timer = null;
-    slideshow.classList.add('is-paused');
-  }
-
-  function restartAutoplay() {
-    stopAutoplay();
-    resetProgress();
-    if (document.hidden) return;
-    slideshow.classList.remove('is-paused');
-    timer = setInterval(function () {
-      goTo(current + 1);
-      resetProgress();
-    }, INTERVAL_MS);
-  }
-
-  prevBtn.addEventListener('click', function () { goTo(current - 1); restartAutoplay(); });
-  nextBtn.addEventListener('click', function () { goTo(current + 1); restartAutoplay(); });
-
-  slideshow.addEventListener('keydown', function (event) {
-    if (event.key === 'ArrowLeft') { event.preventDefault(); goTo(current - 1); restartAutoplay(); }
-    if (event.key === 'ArrowRight') { event.preventDefault(); goTo(current + 1); restartAutoplay(); }
-  });
-
-  slideshow.addEventListener('touchstart', function (event) {
-    touchStartX = event.touches[0].clientX;
-    touchStartY = event.touches[0].clientY;
-  }, { passive: true });
-
-  slideshow.addEventListener('touchend', function (event) {
-    if (touchStartX === null) return;
-    const dx = event.changedTouches[0].clientX - touchStartX;
-    const dy = event.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-      goTo(current + (dx < 0 ? 1 : -1));
-      restartAutoplay();
+    progress.classList.remove('is-running');
+    const running = canPlay();
+    slideshow.classList.toggle('is-paused', !running);
+    pause.setAttribute('aria-label', userPaused ? 'Resume slideshow' : 'Pause slideshow');
+    pause.setAttribute('aria-pressed', String(userPaused));
+    pause.title = userPaused ? 'Resume slideshow' : 'Pause slideshow';
+    pause.querySelector('span').textContent = userPaused ? '\u25b6' : '\u2161';
+    if (!running) { cancelRipple(); return; }
+    if (!reduced.matches) {
+      void progress.offsetWidth;
+      progress.classList.add('is-running');
     }
-    touchStartX = touchStartY = null;
-  }, { passive: true });
+    timer = setTimeout(() => navigate(automaticNext()), INTERVAL_MS);
+  }
 
-  function updateParallax() {
+  async function navigate(index) {
+    const version = ++requestVersion;
+    requested = normalize(index);
+    const destination = requested;
+    loading = true;
+    syncPlayback();
+    const loaded = await prepare(destination, true);
+    if (version !== requestVersion) return;
+    loading = false;
+    if (!loaded) {
+      requested = current;
+      if (!ready && unavailable.size < photos.length) {
+        void navigate(automaticNext());
+        return;
+      }
+      report('This photo could not load. Please try another photo or refresh the page.');
+      syncPlayback();
+      return;
+    }
+    report('');
+    const changed = destination !== current;
+    clearTimeout(cleanupTimer);
+    cancelRipple();
+    slides.forEach((slide) => slide.classList.remove('is-exiting'));
+    if (changed) {
+      slides[current].classList.remove('active');
+      slides[current].classList.add('is-exiting');
+      slides[current].setAttribute('aria-hidden', 'true');
+    }
+    current = destination;
+    slides[current].classList.add('active');
+    slides[current].setAttribute('aria-hidden', 'false');
+    ready = true;
+    indicators();
+    warmAdjacent();
+    syncPlayback();
+    if (changed) ripple(slides[current]);
+    cleanupTimer = setTimeout(function () {
+      slides.forEach((slide) => slide.classList.remove('is-exiting'));
+      releaseFarImages();
+    }, reduced.matches ? 0 : TRANSITION_MS);
+  }
+
+  previous.addEventListener('click', () => navigate(requested - 1));
+  nextButton.addEventListener('click', () => navigate(requested + 1));
+  pause.addEventListener('click', function () {
+    userPaused = !userPaused;
+    syncPlayback();
+    resetPointer();
+  });
+  slideshow.addEventListener('keydown', function (event) {
+    if (event.target.matches('input, textarea, select')) return;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      void navigate(requested + (event.key === 'ArrowLeft' ? -1 : 1));
+    }
+  });
+  slideshow.addEventListener('touchstart', function (event) {
+    touch = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+  }, { passive: true });
+  slideshow.addEventListener('touchend', function (event) {
+    if (!touch || !event.changedTouches.length) return;
+    const dx = event.changedTouches[0].clientX - touch.x;
+    const dy = event.changedTouches[0].clientY - touch.y;
+    touch = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) void navigate(requested + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+  slideshow.addEventListener('touchcancel', () => { touch = null; }, { passive: true });
+
+  function updatePointer() {
     pointerFrame = null;
     slideshow.style.setProperty('--parallax-x', (pointerX * 9).toFixed(1) + 'px');
     slideshow.style.setProperty('--parallax-y', (pointerY * 7).toFixed(1) + 'px');
     slideshow.style.setProperty('--ambient-x', (pointerX * -14).toFixed(1) + 'px');
     slideshow.style.setProperty('--ambient-y', (pointerY * -10).toFixed(1) + 'px');
   }
-
+  function resetPointer() {
+    if (pointerFrame !== null) cancelAnimationFrame(pointerFrame);
+    pointerX = pointerY = 0;
+    updatePointer();
+  }
   slideshow.addEventListener('pointermove', function (event) {
-    if (lowMotion() || event.pointerType !== 'mouse') return;
+    if (lowMotion() || !canPlay() || event.pointerType !== 'mouse') return;
     const bounds = slideshow.getBoundingClientRect();
     pointerX = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
     pointerY = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
-    if (pointerFrame === null) pointerFrame = requestAnimationFrame(updateParallax);
+    if (pointerFrame === null) pointerFrame = requestAnimationFrame(updatePointer);
   });
+  slideshow.addEventListener('pointerleave', resetPointer);
 
-  slideshow.addEventListener('pointerleave', function () {
-    pointerX = pointerY = 0;
-    if (pointerFrame === null) pointerFrame = requestAnimationFrame(updateParallax);
-  });
-
-  function updateMotionPreference() {
+  function motionChanged() {
+    if (reduced.matches) userPaused = true;
     slideshow.classList.toggle('is-low-power', lowMotion());
-    if (lowMotion()) {
-      cancelRipple();
-      pointerX = pointerY = 0;
-      updateParallax();
-    }
-    resetProgress();
+    resetPointer();
+    syncPlayback();
   }
-
-  reducedMotionQuery.addEventListener('change', updateMotionPreference);
-  lowPowerQuery.addEventListener('change', updateMotionPreference);
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden) {
-      stopAutoplay();
-      cancelRipple();
-    } else restartAutoplay();
+  reduced.addEventListener('change', motionChanged);
+  smallScreen.addEventListener('change', motionChanged);
+  document.addEventListener('visibilitychange', function () { resetPointer(); syncPlayback(); });
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(function (entries) {
+      inViewport = entries[0].isIntersecting;
+      syncPlayback();
+    }, { threshold: 0 });
+    observer.observe(slideshow);
+  }
+  window.addEventListener('pagehide', function () {
+    clearTimeout(timer);
+    clearTimeout(cleanupTimer);
+    cancelRipple();
+    resetPointer();
   });
-
+  window.addEventListener('pageshow', syncPlayback);
   slideshow.classList.toggle('is-low-power', lowMotion());
-  warm(0);
-  releaseFarImages();
-  restartAutoplay();
+  indicators();
+  void navigate(0);
 })();
